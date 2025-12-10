@@ -68,25 +68,26 @@ def resumen_pruebas(data: pd.DataFrame) -> Tuple[pd.DataFrame, hg.pettittResult,
     """Ejecuta Pettitt, Mann-Kendall y t-Student+F y construye una tabla resumen."""
     mk_result = mk.original_test(data["ppt"])
     pettitt_result = hg.pettitt_test(data["ppt"].values)
+    pettitt_significativo = bool(pettitt_result.h)
     saltos_tf = detectar_salto_t_f(data)
 
     tabla_resumen = pd.DataFrame(
         {
             "Método": ["Pettitt", "Mann-Kendall", "t-Student + F"],
             "Resultado": [
-                "Salto detectado" if pettitt_result.cp is not None else "No salto",
+                "Salto detectado" if pettitt_significativo else "No salto",
                 mk_result.trend if mk_result.trend != "no trend" else "Estable",
                 "Saltos detectados" if saltos_tf else "No saltos",
             ],
             "Año / Detalle": [
-                int(data["Año"].iloc[pettitt_result.cp]) if pettitt_result.cp is not None else "-",
+                int(data["Año"].iloc[pettitt_result.cp]) if pettitt_significativo else "-",
                 "-",
                 ", ".join(str(s[0]) for s in saltos_tf) if saltos_tf else "-",
             ],
             "Comentario": [
                 (
                     f"Magnitud cambio: {round(data['ppt'].iloc[pettitt_result.cp] - data['ppt'].iloc[pettitt_result.cp - 1], 2)}"
-                    if pettitt_result.cp is not None
+                    if pettitt_significativo
                     else ""
                 ),
                 f"Z={round(mk_result.z, 2)}, p={round(mk_result.p, 3)}",
@@ -102,7 +103,7 @@ def corregir_serie(df: pd.DataFrame, pettitt_result: hg.pettittResult) -> pd.Dat
     """Aplica corrección de salto según Pettitt y evita negativos."""
     data_corregida = df.copy()
 
-    if pettitt_result.cp is not None:
+    if pettitt_result.h and pettitt_result.cp is not None:
         mean_pre = data_corregida[MESES].iloc[: pettitt_result.cp].mean().mean()
         mean_post = data_corregida[MESES].iloc[pettitt_result.cp :].mean().mean()
         offset = mean_pre - mean_post
