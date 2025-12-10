@@ -1,0 +1,6 @@
+pandas
+numpy
+scipy
+pymannkendall
+pyhomogeneity
+openpyxl
